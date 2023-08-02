@@ -14,11 +14,11 @@ import Combine
 /// process, so the Print media CSS instructions are applied and the
 /// final PDF is correctly paginated.
 final class Printer: NSObject {
-  internal init(command: HtmlPrinter) {
+  internal init(command: Converter) {
     self.command = command
   }
 
-  let command: HtmlPrinter
+  let command: Converter
   var observers = Set<AnyCancellable>()
   var shouldKeepRunning = true
 
@@ -85,9 +85,8 @@ final class Printer: NSObject {
       .store(in: &observers)
 
     let theRL = RunLoop.current
-    while (
+    while
       shouldKeepRunning
-      && theRL.run(mode: .default, before: .distantFuture)) {}
+      && theRL.run(mode: .default, before: .distantFuture) {}
   }
 }
-

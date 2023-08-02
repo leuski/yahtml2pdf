@@ -42,4 +42,3 @@ extension UnitLength {
       converter: UnitConverterLinear(coefficient: 0.000352777777778))
   }
 }
-

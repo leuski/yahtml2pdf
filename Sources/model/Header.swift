@@ -34,7 +34,7 @@ func tagHeaders(in html: String) -> (String, [Header]) {
     let id: String
     let attributes = String(match.2)
 
-    if let existingID = attributes.firstMatch(of: /id="(.*?)"/)?.1 {
+    if let existingID = attributes.firstMatch(of: #/id="(.*?)"/#)?.1 {
       id = String(existingID)
     } else {
       id = "__al_tmp_\(headers.count)"
@@ -55,4 +55,3 @@ func tagHeaders(in html: String) -> (String, [Header]) {
   
   return (taggedHTML, headers)
 }
-
