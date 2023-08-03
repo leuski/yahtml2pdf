@@ -33,9 +33,45 @@ TABLE OF CONTENTS:
                           value provided. (default: en)
   --toc-title <string>    The title for the table of contents.  Default value
                           provided. (default: Table of Contents)
+  --toc-headings <list of numbers>
+                          The HTML heading tags to include into the Table of
+                          Contents.  A comma seprated list of heading levels.
+                          Default value provided. (default: 1,2,3)
+  --toc-depth <depth>     The depth of the Table of Contents. The effect is
+                          different from the allowed headings list. For
+                          example, if your document has
+                            <h1>...</h1>
+                            <h3>Heading 3</h3>
+                          and you set the depth to 2, 'Heading 3' will be
+                          included in the table. If, on the other hand, you
+                          have
+                            <h1>...</h1>
+                            <h2>...</h2>
+                            <h3>Heading 3</h3>
+                          here, there is an h2 tag between <h1> and <h3>, --
+                          'Heading 3' will not be included in the table.
+                          Default value provided. (default: 6)
   --outline               Generate the document outline in the final PDF. The
                           table of Contents is a part of the document itself.
                           The outline is the navigation menu in the PDF.
+  --outline-headings <list of numbers>
+                          The HTML heading tags to include into the Table of
+                          Contents.  A comma seprated list of heading levels.
+                          Default value provided. (default: 1,2,3)
+  --outline-depth <depth> The depth of the outline. The effect is different
+                          from the allowed headings list. For example, if your
+                          document has
+                            <h1>...</h1>
+                            <h3>Heading 3</h3>
+                          and you set the depth to 2, 'Heading 3' will be
+                          included in the outline. If, on the other hand, you
+                          have
+                            <h1>...</h1>
+                            <h2>...</h2>
+                            <h3>Heading 3</h3>
+                          here, there is an h2 tag between <h1> and <h3>, --
+                          'Heading 3' will not be included in the outline.
+                          Default value provided. (default: 6)
 
 PAGE OPTIONS:
   --margin-left <length value>

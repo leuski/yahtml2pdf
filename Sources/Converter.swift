@@ -13,94 +13,6 @@ import PDFKit
 
 let dummyURLPrefix = "http://dummy/#"
 
-struct TableOfContentsOptions: ParsableArguments {
-  @Flag(help: .init("""
-    Generate Table of Content and insert it in front of the document.
-    """))
-  var toc: Bool = false
-
-  @Option(help: .init("""
-    The path where to store the TOC xml file. Normally we do not save \
-    the xml file but convert it into HTML. This might be useful for \
-    debugging the XSL stylesheet. If omitted, no file is saved. \
-    Optional.
-    """, valueName: "path to store TOC XML file"))
-  var dumpToc: String?
-
-  @Option(help: .init("""
-    The path to a custom xsl stylesheet for creating the Table of Content. \
-    Optional.
-    """, valueName: "path to xsl stylesheet"))
-  var xslStyleSheet: String?
-
-  @Option(help: .init("""
-    The path for the CSS style sheet to include with the table of contents \
-    Optional.
-    """, valueName: "path to style sheet"))
-  var tocUserStyleSheet: String?
-
-  @Option(help: .init("""
-    The language for the table of contents.  \
-    Default value provided.
-    """, valueName: "language code"))
-  var tocLanguage: String = "en"
-
-  @Option(help: .init("""
-    The title for the table of contents.  \
-    Default value provided.
-    """, valueName: "string"))
-  var tocTitle: String = "Table of Contents"
-
-  @Flag(help: .init("""
-    Generate the document outline in the final PDF. The table of Contents is \
-    a part of the document itself. The outline is the navigation menu in the \
-    PDF.
-    """))
-  var outline: Bool = false
-}
-
-struct PageOptions: ParsableArguments {
-  @Option(help: .init("""
-    Left page margin. Can be specified in points (pt), inches (in), \
-    millimeters (mm), or centimeters (cm). Default value provided.
-    """, valueName: "length value"))
-  var marginLeft: Measurement<UnitLength> = .init(value: 1, unit: .inches)
-
-  @Option(help: .init("""
-    Right page margin. Can be specified in points (pt), inches (in), \
-    millimeters (mm), or centimeters (cm). Default value provided.
-    """, valueName: "length value"))
-  var marginRight: Measurement<UnitLength> = .init(value: 1, unit: .inches)
-
-  @Option(help: .init("""
-    Top page margin. Can be specified in points (pt), inches (in), \
-    millimeters (mm), or centimeters (cm). Default value provided.
-    """, valueName: "length value"))
-  var marginTop: Measurement<UnitLength> = .init(value: 1, unit: .inches)
-
-  @Option(help: .init("""
-    Bottom page margin. Can be specified in points (pt), inches (in), \
-    millimeters (mm), or centimeters (cm). Default value provided.
-    """, valueName: "length value"))
-  var marginBottom: Measurement<UnitLength> = .init(value: 1, unit: .inches)
-
-  @Option(help: .init("""
-    Paper width. Can be specified in points (pt), inches (in), \
-    millimeters (mm), or centimeters (cm). You must supply either both \
-    paper-width and paper-height values or neither. If you provide only \
-    one of them, it will be ignored. If both are omitted, the default \
-    paper size "\(NSPrintInfo().localizedPaperName ?? "n/a")" will be used. \
-    Optional.
-    """, valueName: "length value"))
-  var paperWidth: Measurement<UnitLength>?
-
-  @Option(help: .init("""
-    Paper height. Can be specified in points (pt), inches (in), \
-    millimeters (mm), or centimeters (cm). Optional.
-    """, valueName: "length value"))
-  var paperHeight: Measurement<UnitLength>?
-}
-
 @main
 struct Converter: ParsableCommand {
 
@@ -152,7 +64,7 @@ struct Converter: ParsableCommand {
       // and remove the dummy anchors
       //
       // insert anchors first.
-      let (tmpURL, headers) = try insertHeaderMarkers(input: inputURL)
+      let (tmpURL, headings) = try insertHeaderMarkers(input: inputURL)
       defer {
         if !keepTmpFiles {
           try? FileManager.default.removeItem(at: tmpURL)
@@ -164,7 +76,7 @@ struct Converter: ParsableCommand {
       try makeOutline(
         source: inputURL.deletingLastPathComponent(),
         pdf: tmpOutputURL,
-        headers: headers)
+        headings: headings)
     } else {
       // just print the pages to PDF
       try Printer(command: self).run(input: inputURL, output: tmpOutputURL)
@@ -185,13 +97,13 @@ struct Converter: ParsableCommand {
     try FileManager.default.moveItem(at: tmpOutputURL, to: outputURL)
   }
 
-  func insertHeaderMarkers(input inputURL: URL) throws -> (URL, [Header]) {
+  func insertHeaderMarkers(input inputURL: URL) throws -> (URL, [Heading]) {
     // take the existing html and modify the h tags.
     let tmpURL = inputURL.deletingLastPathComponent()
       .appendingPathComponent("al.tmp.html")
-    let (html, headers) = tagHeaders(in: try String(contentsOf: inputURL))
+    let (html, headings) = tagHeadings(in: try String(contentsOf: inputURL))
     try html.write(to: tmpURL, atomically: true, encoding: .utf8)
-    return (tmpURL, headers)
+    return (tmpURL, headings)
   }
 
   func insertCover(_ cover: URL, into content: URL) throws {
@@ -200,7 +112,7 @@ struct Converter: ParsableCommand {
     document.insert(cover.pages, at: 0)
     try document.write(to: content, atomically: false)
   }
-  
+
 }
 
 extension Converter {
@@ -214,7 +126,9 @@ extension Converter {
     // it has a link for every TOC entry, the links are dummy URLs
     // with the page inde and page location, we need this so we can
     // extract it out of the PDF later.
-    let tocXML = entryRoot.tocXMLDocument
+    let tocXML = entryRoot.tocXMLDocument(filter: .init(
+      levels: tocOptions.tocHeadings,
+      maximumDepth: tocOptions.tocDepth))
 
     if let tocURL = tocOptions.dumpToc?.filePathURL {
       try tocXML
@@ -288,17 +202,19 @@ extension Converter {
   }
 
   func makeOutline(
-    source sourceURL: URL, pdf inputURL: URL, headers: [Header]) throws
+    source sourceURL: URL, pdf inputURL: URL, headings: [Heading]) throws
   {
     let document = try PDFDocument.document(at: inputURL)
 
     // extract the TOC hierarchy
-    guard let entryRoot = document.toc(headers: headers)
+    guard let entryRoot = document.toc(headings: headings)
     else { return }
 
     if tocOptions.outline {
       // make the outline
-      document.outlineRoot = entryRoot.outlineItem
+      document.outlineRoot = entryRoot.outlineItem(filter: .init(
+        levels: tocOptions.outlineHeadings,
+        maximumDepth: tocOptions.outlineDepth))
     }
 
     if tocOptions.toc {

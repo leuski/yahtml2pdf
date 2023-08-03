@@ -55,12 +55,12 @@ extension PDFDocument {
 extension PDFDocument {
   /// compute the TOC entries for each h tag described in the argument.
   /// the result is a TOC tree.
-  func toc(headers: [Header]) -> TOCEntry? {
+  func toc(headings: [Heading]) -> TOCEntry? {
     // we need a page for the root element
     guard let firstPage = page(at: 0) else { return nil }
 
-    let headerIndices = Dictionary(
-      headers.enumerated()
+    let headingIndices = Dictionary(
+      headings.enumerated()
         .map { index, header in (header.identifier, index) }) { old, _ in old }
 
     var entries = [String: (TOCEntry, Int)]()
@@ -73,9 +73,9 @@ extension PDFDocument {
       annotations.forEach { annotation, id in
         let bounds = annotation.bounds
         page.removeAnnotation(annotation)
-        guard let headerIndex = headerIndices[id] else { return }
+        guard let headerIndex = headingIndices[id] else { return }
         entries[id] = (.init(
-          header: headers[headerIndex],
+          heading: headings[headerIndex],
           pageIndex: pageIndex,
           page: page,
           // left side of the page and 1/2 inch above the text
@@ -84,7 +84,7 @@ extension PDFDocument {
     }
 
     var stack = [TOCEntry]()
-    stack.append(TOCEntry(header: .init(content: "Root"), page: firstPage))
+    stack.append(TOCEntry(heading: .init(content: "Root"), page: firstPage))
 
     entries.values
       .sorted { lhs, rhs in lhs.1 < rhs.1 }
@@ -92,10 +92,10 @@ extension PDFDocument {
       .forEach { entry in
         while true {
           guard let current = stack.last else { return }
-          if current.header.level >= entry.header.level {
+          if current.heading.level >= entry.heading.level {
             stack.removeLast()
           }
-          if current.header.level <= entry.header.level {
+          if current.heading.level <= entry.heading.level {
             stack.last?.items.append(entry)
             stack.append(entry)
             return

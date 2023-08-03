@@ -10,20 +10,20 @@ import PDFKit
 
 /// An entry in the document table of content.
 final class TOCEntry: CustomStringConvertible {
-  let header: Header
+  let heading: Heading
   let pageIndex: Int
   let page: PDFPage
   let point: NSPoint
   var items: [TOCEntry]
 
   internal init(
-    header: Header,
+    heading: Heading,
     pageIndex: Int = 0,
     page: PDFPage,
     point: NSPoint = .zero,
     items: [TOCEntry] = [])
   {
-    self.header = header
+    self.heading = heading
     self.pageIndex = pageIndex
     self.page = page
     self.point = point
@@ -31,18 +31,46 @@ final class TOCEntry: CustomStringConvertible {
   }
 
   var description: String {
-    "\(header.identifier) \(header.level) { " + items.description + " } "
+    "\(heading.identifier) \(heading.level) { " + items.description + " } "
   }
 
 }
 
+struct TOCTreeFilter {
+  let allowedLevels: Set<Int>
+  let maximumDepth: Int
+
+  init(allowedLevels: Set<Int>, maximumDepth: Int) {
+    self.allowedLevels = allowedLevels
+    self.maximumDepth = maximumDepth
+  }
+
+  init(levels: String, maximumDepth: Int) {
+    self.init(
+      allowedLevels: Set(levels
+        .split(separator: ",")
+        .compactMap { string in Int(string) }),
+      maximumDepth: maximumDepth)
+  }
+
+  func acceptable(_ entry: TOCEntry, at depth: Int) -> Bool {
+    allowedLevels.contains(entry.heading.level) && depth <= maximumDepth
+  }
+}
+
 extension TOCEntry {
-  var outlineItem: PDFOutline {
+  func outlineItem(
+    filter: TOCTreeFilter,
+    depth: Int = 0) -> PDFOutline
+  {
     let item = PDFOutline()
-    item.label = header.content
+    item.label = heading.content
     item.destination = PDFDestination(page: page, at: point)
-    items.enumerated().forEach { index, entry in
-      item.insertChild(entry.outlineItem, at: index)
+    items.forEach { entry in
+      guard filter.acceptable(entry, at: depth+1) else { return }
+      item.insertChild(
+        entry.outlineItem(filter: filter, depth: depth+1),
+        at: item.numberOfChildren)
     }
     return item
   }
@@ -53,19 +81,26 @@ extension TOCEntry {
     PageDestination(page: pageIndex, point: point).fragment
   }
 
-  var tocXMLElement: XMLElement {
+  func tocXMLElement(
+    filter: TOCTreeFilter,
+    depth: Int = 0) -> XMLElement
+  {
     let element = XMLElement(name: "item")
-    element.addAttribute(name: "title", value: header.content)
+    element.addAttribute(name: "title", value: heading.content)
     element.addAttribute(name: "page", value: String(pageIndex+1))
     serializedDestination.map { link in
       element.addAttribute(
         name: "link", value: dummyURLPrefix + link)
     }
-    element.setChildren(items.map { item in item.tocXMLElement })
+    element.setChildren(items.compactMap {
+      entry in
+      guard filter.acceptable(entry, at: depth+1) else { return nil }
+      return entry.tocXMLElement(filter: filter, depth: depth+1)
+    })
     return element
   }
 
-  var tocXMLDocument: XMLDocument {
+  func tocXMLDocument(filter: TOCTreeFilter) -> XMLDocument {
     let document = XMLDocument(
       rootElement: .init(
         name: "outline", uri: "http://wkhtmltopdf.org/outline"))
@@ -73,7 +108,7 @@ extension TOCEntry {
       .map { node in document.rootElement()?.addNamespace(node) }
     document.characterEncoding = "UTF-8"
     document.version = "1.0"
-    document.rootElement()?.addChild(tocXMLElement)
+    document.rootElement()?.addChild(tocXMLElement(filter: filter))
     return document
   }
 }

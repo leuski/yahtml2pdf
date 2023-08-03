@@ -1,5 +1,5 @@
 //
-//  Header.swift
+//  Heading.swift
 //  yahtml2pdf
 //
 //  Created by Anton Leuski on 8/1/23.
@@ -7,8 +7,8 @@
 
 import Foundation
 
-/// an html header element that has an id attribute
-struct Header: CustomStringConvertible {
+/// an html heading element that has an id attribute
+struct Heading: CustomStringConvertible {
   internal init(level: Int = 0, identifier: String = "", content: String = "") {
     self.level = level
     self.identifier = identifier
@@ -25,8 +25,8 @@ struct Header: CustomStringConvertible {
 }
 
 /// Given an html document tag every h tag with a dummy anchor.
-func tagHeaders(in html: String) -> (String, [Header]) {
-  var headers = [Header]()
+func tagHeadings(in html: String) -> (String, [Heading]) {
+  var headings = [Heading]()
 
   let taggedHTML = html.replacing(#/<[Hh](.)(.*?)>(.*?)</[Hh].>/#) { match in
     let level = match.1
@@ -37,10 +37,10 @@ func tagHeaders(in html: String) -> (String, [Header]) {
     if let existingID = attributes.firstMatch(of: #/id="(.*?)"/#)?.1 {
       id = String(existingID)
     } else {
-      id = "__al_tmp_\(headers.count)"
+      id = "__al_tmp_\(headings.count)"
     }
 
-    headers.append(.init(
+    headings.append(.init(
       level: Int(level) ?? 1,
       identifier: id,
       content: String(content)))
@@ -53,5 +53,5 @@ func tagHeaders(in html: String) -> (String, [Header]) {
           """
   }
   
-  return (taggedHTML, headers)
+  return (taggedHTML, headings)
 }
