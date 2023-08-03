@@ -76,6 +76,8 @@ extension TOCEntry {
   }
 }
 
+let tocXMLNamespaceURI = "https://github.com/leuski/yahtml2pdf"
+
 extension TOCEntry {
   var serializedDestination: String? {
     PageDestination(page: pageIndex, point: point).fragment
@@ -85,7 +87,7 @@ extension TOCEntry {
     filter: TOCTreeFilter,
     depth: Int = 0) -> XMLElement
   {
-    let element = XMLElement(name: "item")
+    let element = XMLElement(name: "item", uri: tocXMLNamespaceURI)
     element.addAttribute(name: "title", value: heading.content)
     element.addAttribute(name: "page", value: String(pageIndex+1))
     serializedDestination.map { link in
@@ -102,9 +104,8 @@ extension TOCEntry {
 
   func tocXMLDocument(filter: TOCTreeFilter) -> XMLDocument {
     let document = XMLDocument(
-      rootElement: .init(
-        name: "outline", uri: "http://wkhtmltopdf.org/outline"))
-    XMLNode.namespace(value: "http://wkhtmltopdf.org/outline")
+      rootElement: .init(name: "outline", uri: tocXMLNamespaceURI))
+    XMLNode.namespace(value: tocXMLNamespaceURI)
       .map { node in document.rootElement()?.addNamespace(node) }
     document.characterEncoding = "UTF-8"
     document.version = "1.0"
