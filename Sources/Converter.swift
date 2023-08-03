@@ -13,18 +13,7 @@ import PDFKit
 
 let dummyURLPrefix = "http://dummy/#"
 
-@main
-struct Converter: ParsableCommand {
-  @Argument(help: .init("""
-    The path to the source HTML file.
-    """))
-  var inputPath: String
-
-  @Argument(help: .init("""
-    The path to the final PDF file.
-    """))
-  var outputPath: String
-
+struct TableOfContentsOptions: ParsableArguments {
   @Flag(help: .init("""
     Generate Table of Content and insert it in front of the document.
     """))
@@ -37,6 +26,12 @@ struct Converter: ParsableCommand {
     Optional.
     """, valueName: "path to store TOC XML file"))
   var dumpToc: String?
+
+  @Option(help: .init("""
+    The path to a custom xsl stylesheet for creating the Table of Content. \
+    Optional.
+    """, valueName: "path to xsl stylesheet"))
+  var xslStyleSheet: String?
 
   @Option(help: .init("""
     The path for the CSS style sheet to include with the table of contents \
@@ -57,22 +52,14 @@ struct Converter: ParsableCommand {
   var tocTitle: String = "Table of Contents"
 
   @Flag(help: .init("""
-    Generate a document outline in the final PDF.
+    Generate the document outline in the final PDF. The table of Contents is \
+    a part of the document itself. The outline is the navigation menu in the \
+    PDF.
     """))
   var outline: Bool = false
+}
 
-  @Option(help: .init("""
-    The path to a custom xsl stylesheet for creating the Table of Content. \
-    Optional.
-    """, valueName: "path to xsl stylesheet"))
-  var xslStyleSheet: String?
-
-  @Option(help: .init("""
-    The path to the cover page html file if a cover page is required. \
-    Optional.
-    """, valueName: "path to the cover page html"))
-  var cover: String?
-
+struct PageOptions: ParsableArguments {
   @Option(help: .init("""
     Left page margin. Can be specified in points (pt), inches (in), \
     millimeters (mm), or centimeters (cm). Default value provided.
@@ -112,6 +99,39 @@ struct Converter: ParsableCommand {
     millimeters (mm), or centimeters (cm). Optional.
     """, valueName: "length value"))
   var paperHeight: Measurement<UnitLength>?
+}
+
+@main
+struct Converter: ParsableCommand {
+
+  static var configuration = CommandConfiguration(
+    commandName: "yahtml2pdf",
+    abstract: """
+      Converts an HTML file into a PDF using WebKit. Supports generating \
+      the table of contents and including a cover page.
+      """)
+
+  @Argument(help: .init("""
+    The path to the source HTML file.
+    """))
+  var inputPath: String
+
+  @Argument(help: .init("""
+    The path to the final PDF file.
+    """))
+  var outputPath: String
+
+  @OptionGroup(title: "Table of Contents")
+  var tocOptions: TableOfContentsOptions
+
+  @Option(help: .init("""
+    The path to the cover page html file if a cover page is required. \
+    Optional.
+    """, valueName: "path to the cover page html"))
+  var cover: String?
+
+  @OptionGroup(title: "Page Options")
+  var pageOptions: PageOptions
 
   @Flag(help: .init(
     "Keep temporary files around for debugging", visibility: .private))
@@ -125,7 +145,7 @@ struct Converter: ParsableCommand {
     let tmpOutputURL = URL.temporaryDirectory
       .appendingPathComponent(outputURL.lastPathComponent)
 
-    if toc || outline {
+    if tocOptions.toc || tocOptions.outline {
       // if either TOC or outline are requested, we need to collect header
       // tag page placement. We insert a dummy anchor tags next to each
       // h tag, then examine the resulting PDF to find the tag page placement
@@ -196,7 +216,7 @@ extension Converter {
     // extract it out of the PDF later.
     let tocXML = entryRoot.tocXMLDocument
 
-    if let tocURL = dumpToc?.filePathURL {
+    if let tocURL = tocOptions.dumpToc?.filePathURL {
       try tocXML
         .xmlData(options: [
           .nodePrettyPrint,
@@ -209,10 +229,10 @@ extension Converter {
     // convert the outline xml into html
     let tocHTML: XMLDocument?
     var arguments = [String: String]()
-    arguments["style-sheet"] = tocUserStyleSheet?.xsltParameter
-    arguments["lang"] = tocLanguage.xsltParameter
-    arguments["title"] = tocTitle.xsltParameter
-    if let xsltURL = xslStyleSheet?.filePathURL {
+    arguments["style-sheet"] = tocOptions.tocUserStyleSheet?.xsltParameter
+    arguments["lang"] = tocOptions.tocLanguage.xsltParameter
+    arguments["title"] = tocOptions.tocTitle.xsltParameter
+    if let xsltURL = tocOptions.xslStyleSheet?.filePathURL {
       tocHTML = try tocXML.documentByApplyingXSLT(
         at: xsltURL, arguments: arguments)
     } else {
@@ -276,12 +296,12 @@ extension Converter {
     guard let entryRoot = document.toc(headers: headers)
     else { return }
 
-    if outline {
+    if tocOptions.outline {
       // make the outline
       document.outlineRoot = entryRoot.outlineItem
     }
 
-    if toc {
+    if tocOptions.toc {
       // make the TOC
       try makeTOC(source: sourceURL, document: document, entryRoot: entryRoot)
     }

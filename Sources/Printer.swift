@@ -34,6 +34,8 @@ final class Printer: NSObject {
     printInfo.isVerticallyCentered = false
     printInfo.isHorizontallyCentered = false
 
+    let command = self.command.pageOptions
+    
     if
       let width = command.paperWidth?.converted(to: .points).value,
       let height = command.paperHeight?.converted(to: .points).value
