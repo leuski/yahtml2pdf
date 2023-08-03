@@ -9,19 +9,19 @@ import Foundation
 import PDFKit
 
 /// An entry in the document table of content.
-final class Entry: CustomStringConvertible {
+final class TOCEntry: CustomStringConvertible {
   let header: Header
   let pageIndex: Int
   let page: PDFPage
   let point: NSPoint
-  var items: [Entry]
+  var items: [TOCEntry]
 
   internal init(
     header: Header,
     pageIndex: Int = 0,
     page: PDFPage,
     point: NSPoint = .zero,
-    items: [Entry] = [])
+    items: [TOCEntry] = [])
   {
     self.header = header
     self.pageIndex = pageIndex
@@ -36,7 +36,7 @@ final class Entry: CustomStringConvertible {
 
 }
 
-extension Entry {
+extension TOCEntry {
   var outlineItem: PDFOutline {
     let item = PDFOutline()
     item.label = header.content
@@ -48,7 +48,7 @@ extension Entry {
   }
 }
 
-extension Entry {
+extension TOCEntry {
   var serializedDestination: String? {
     PageDestination(page: pageIndex, point: point).fragment
   }

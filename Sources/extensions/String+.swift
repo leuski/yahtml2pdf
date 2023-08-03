@@ -11,4 +11,8 @@ extension String {
   var filePathURL: URL {
     URL(fileURLWithPath: self)
   }
+
+  var xsltParameter: String {
+    "'\(self)'"
+  }
 }

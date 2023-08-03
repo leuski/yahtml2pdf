@@ -170,7 +170,7 @@ extension Converter {
   func makeTOC(
     source sourceURL: URL,
     document: PDFDocument,
-    entryRoot: Entry) throws
+    entryRoot: TOCEntry) throws
   {
     // make the xml document for the outline
     // it has a link for every TOC entry, the links are dummy URLs

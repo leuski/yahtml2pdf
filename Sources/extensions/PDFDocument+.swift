@@ -55,7 +55,7 @@ extension PDFDocument {
 extension PDFDocument {
   /// compute the TOC entries for each h tag described in the argument.
   /// the result is a TOC tree.
-  func toc(headers: [Header]) -> Entry? {
+  func toc(headers: [Header]) -> TOCEntry? {
     // we need a page for the root element
     guard let firstPage = page(at: 0) else { return nil }
 
@@ -63,7 +63,7 @@ extension PDFDocument {
       headers.enumerated()
         .map { index, header in (header.identifier, index) }) { old, _ in old }
 
-    var entries = [String: (Entry, Int)]()
+    var entries = [String: (TOCEntry, Int)]()
 
     pages.enumerated().forEach { pageIndex, page in
       guard let page = page else { return }
@@ -83,8 +83,8 @@ extension PDFDocument {
       }
     }
 
-    var stack = [Entry]()
-    stack.append(Entry(header: .init(content: "Root"), page: firstPage))
+    var stack = [TOCEntry]()
+    stack.append(TOCEntry(header: .init(content: "Root"), page: firstPage))
 
     entries.values
       .sorted { lhs, rhs in lhs.1 < rhs.1 }
