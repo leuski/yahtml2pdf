@@ -38,6 +38,24 @@ struct Converter: ParsableCommand {
     """, valueName: "path to store TOC XML file"))
   var dumpToc: String?
 
+  @Option(help: .init("""
+    The path for the CSS style sheet to include with the table of contents \
+    Optional.
+    """, valueName: "path to style sheet"))
+  var tocUserStyleSheet: String?
+
+  @Option(help: .init("""
+    The language for the table of contents.  \
+    Default value provided.
+    """, valueName: "language code"))
+  var tocLanguage: String = "en"
+
+  @Option(help: .init("""
+    The title for the table of contents.  \
+    Default value provided.
+    """, valueName: "string"))
+  var tocTitle: String = "Table of Contents"
+
   @Flag(help: .init("""
     Generate a document outline in the final PDF.
     """))
@@ -190,10 +208,16 @@ extension Converter {
 
     // convert the outline xml into html
     let tocHTML: XMLDocument?
+    var arguments = [String: String]()
+    arguments["style-sheet"] = tocUserStyleSheet?.xsltParameter
+    arguments["lang"] = tocLanguage.xsltParameter
+    arguments["title"] = tocTitle.xsltParameter
     if let xsltURL = xslStyleSheet?.filePathURL {
-      tocHTML = try tocXML.documentByApplyingXSLT(at: xsltURL)
+      tocHTML = try tocXML.documentByApplyingXSLT(
+        at: xsltURL, arguments: arguments)
     } else {
-      tocHTML = try tocXML.documentByApplyingXSLT(defaultTocXsl)
+      tocHTML = try tocXML.documentByApplyingXSLT(
+        defaultTocXsl, arguments: arguments)
     }
 
     // save the html in the source directory so we can use
