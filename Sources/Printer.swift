@@ -13,7 +13,7 @@ import Combine
 /// and print the content into a PDF file. This is using the printing
 /// process, so the Print media CSS instructions are applied and the
 /// final PDF is correctly paginated.
-final class Printer: NSObject {
+final class Printer: NSObject, @unchecked Sendable {
   internal init(command: Converter) {
     self.command = command
   }
@@ -22,6 +22,7 @@ final class Printer: NSObject {
   var observers = Set<AnyCancellable>()
   var shouldKeepRunning = true
 
+  @MainActor
   func printView(_ webView: WKWebView, to outputURL: URL) {
     let printInfo = NSPrintInfo(dictionary: [
       .jobDisposition: NSPrintInfo.JobDisposition.save,
@@ -70,7 +71,8 @@ final class Printer: NSObject {
     shouldKeepRunning = false
   }
 
-  func run(input inputURL: URL, output outputURL: URL) throws {
+  @MainActor
+  private func _run(input inputURL: URL, output outputURL: URL) {
     let config = WKWebViewConfiguration()
     let webView = WKWebView(
       frame: .init(origin: .zero, size: .init(width: 500, height: 1000)),
@@ -85,10 +87,17 @@ final class Printer: NSObject {
         }
       }
       .store(in: &observers)
+  }
+
+  func run(input inputURL: URL, output outputURL: URL) throws {
+
+    Task { @MainActor in
+      self._run(input: inputURL, output: outputURL)
+    }
 
     let theRL = RunLoop.current
     while
       shouldKeepRunning
-      && theRL.run(mode: .default, before: .distantFuture) {}
+        && theRL.run(mode: .default, before: .distantFuture) {}
   }
 }
